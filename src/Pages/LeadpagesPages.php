@@ -27,6 +27,8 @@ class LeadpagesPages
      * @var \Leadpages\Auth\LeadpagesLogin
      */
     public $response;
+    public $certFile = ABSPATH . WPINC . '/certificates/ca-bundle.crt';
+
 
     public function __construct(Client $client, LeadpagesLogin $login)
     {
@@ -54,7 +56,7 @@ class LeadpagesPages
             $response = $this->client->get($this->PagesUrl,
                 [
                     'headers' => ['LP-Security-Token' => $this->login->token],
-                    'verify' => false,
+                    'verify' => $this->certFile,
                     'query' => $queryArray
                 ]);
             $response = [
@@ -192,7 +194,7 @@ class LeadpagesPages
             $response = $this->client->get($this->PagesUrl . '/' . $pageId,
                 [
                     'headers' => ['LP-Security-Token' => $this->login->token],
-                    'verify' => false,
+                    'verify' => $this->certFile,
                 ]);
 
             $body = json_decode($response->getBody(), true);
@@ -256,6 +258,7 @@ class LeadpagesPages
 
         $responseArray = json_decode($response['response'], true);
         $options = [];
+        $options['verify'] = $this->certFile;
         foreach ($_COOKIE as $index => $value) {
             if (strpos($index, 'splitTestV2URI') !== False) {
                 $options['cookies'] = [$index => $value];
@@ -325,7 +328,7 @@ class LeadpagesPages
             $response = $this->client->get($this->PagesUrl . '/' . $pageId,
                 [
                     'headers' => ['LP-Security-Token' => $this->login->token],
-                    'verify' => false,
+                    'verify' => $this->certFile,
                 ]);
 
             $body = json_decode($response->getBody(), true);
