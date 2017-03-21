@@ -27,7 +27,7 @@ class LeadpagesPages
      * @var \Leadpages\Auth\LeadpagesLogin
      */
     public $response;
-    public $certFile = ABSPATH . WPINC . '/certificates/ca-bundle.crt';
+    public $certFile;
 
 
     public function __construct(Client $client, LeadpagesLogin $login)
@@ -36,6 +36,8 @@ class LeadpagesPages
         $this->client = $client;
         $this->login = $login;
         $this->PagesUrl = "https://my.leadpages.net/page/v1/pages";
+        $this->certFile = ABSPATH . WPINC . '/certificates/ca-bundle.crt';
+
     }
 
     /**
