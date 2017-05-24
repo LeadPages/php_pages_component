@@ -57,7 +57,7 @@ class LeadpagesPages
         try {
             $response = $this->client->get($this->PagesUrl,
                 [
-                    'headers' => ['LP-Security-Token' => $this->login->token],
+                    'headers' => ['Authorization' => $this->login->token],
                     'verify' => $this->certFile,
                     'query' => $queryArray
                 ]);
@@ -195,7 +195,7 @@ class LeadpagesPages
         try {
             $response = $this->client->get($this->PagesUrl . '/' . $pageId,
                 [
-                    'headers' => ['LP-Security-Token' => $this->login->token],
+                    'headers' => ['Authorization' => $this->login->token],
                     'verify' => $this->certFile,
                 ]);
 
@@ -329,7 +329,7 @@ class LeadpagesPages
         try {
             $response = $this->client->get($this->PagesUrl . '/' . $pageId,
                 [
-                    'headers' => ['LP-Security-Token' => $this->login->token],
+                    'headers' => ['Authorization' => $this->login->token],
                     'verify' => $this->certFile,
                 ]);
 
