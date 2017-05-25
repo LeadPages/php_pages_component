@@ -37,7 +37,7 @@ class LeadpagesPages
         $this->login = $login;
         $this->PagesUrl = "https://my.leadpages.net/page/v1/pages";
         $this->certFile = ABSPATH . WPINC . '/certificates/ca-bundle.crt';
-
+        $this->login->getApiKey();
     }
 
     /**
@@ -57,7 +57,7 @@ class LeadpagesPages
         try {
             $response = $this->client->get($this->PagesUrl,
                 [
-                    'headers' => ['LP-Security-Token' => $this->login->token],
+                    'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
                     'verify' => $this->certFile,
                     'query' => $queryArray
                 ]);
@@ -95,11 +95,6 @@ class LeadpagesPages
      */
     public function getAllUserPages($returnResponse = array(), $cursor = false)
     {
-
-        if (empty($this->login->token)) {
-            $this->login->getToken();
-        }
-
         //get & parse response
         $response = $this->getPages($cursor);
         $response = json_decode($response['response'], true);
@@ -195,7 +190,7 @@ class LeadpagesPages
         try {
             $response = $this->client->get($this->PagesUrl . '/' . $pageId,
                 [
-                    'headers' => ['LP-Security-Token' => $this->login->token],
+                    'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
                     'verify' => $this->certFile,
                 ]);
 
@@ -322,14 +317,12 @@ class LeadpagesPages
      */
     public function isLeadpageSplittested($pageId)
     {
-        if (is_null($this->login->token)) {
-            $this->login->token = $this->login->getToken();
-        }
+        
 
         try {
             $response = $this->client->get($this->PagesUrl . '/' . $pageId,
                 [
-                    'headers' => ['LP-Security-Token' => $this->login->token],
+                    'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
                     'verify' => $this->certFile,
                 ]);
 
