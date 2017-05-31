@@ -96,8 +96,8 @@ class LeadpagesPages
     public function getAllUserPages($returnResponse = array(), $cursor = false)
     {
 
-        if (empty($this->login->token)) {
-            $this->login->getToken();
+        if (empty($this->login->apiKey)) {
+            $this->login->getApiKey();
         }
 
         //get & parse response
@@ -248,8 +248,8 @@ class LeadpagesPages
     public function downloadPageHtml($pageId)
     {
 
-        if (is_null($this->login->token)) {
-            $this->login->token = $this->login->getToken();
+        if (is_null($this->login->apiKey)) {
+            $this->login->apiKey = $this->login->getApiKey();
         }
 
         $response = $this->getSinglePageDownloadUrl($pageId);
@@ -322,8 +322,8 @@ class LeadpagesPages
      */
     public function isLeadpageSplittested($pageId)
     {
-        if (is_null($this->login->token)) {
-            $this->login->token = $this->login->getToken();
+        if (is_null($this->login->apiKey)) {
+            $this->login->apiKey = $this->login->getApiKey();
         }
 
         try {
