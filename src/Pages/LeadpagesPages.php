@@ -30,42 +30,47 @@ class LeadpagesPages
     public $certFile;
 
 
-    public function __construct(Client $client, LeadpagesLogin $login)
+    /**
+     * 
+     * @todo Refactor dependency on WP
+     */
+    public function __construct(Client $client, LeadpagesLogin $login, $pages_uri = null)
     {
 
         $this->client = $client;
         $this->login = $login;
-        $this->PagesUrl = "https://my.leadpages.net/page/v1/pages";
+        //$this->PagesUrl = $pages_uri ?: "https://my.leadpages.net/page/v1/pages";
+        $this->PagesUrl = $pages_uri ?: "https://api.leadpages.io/content/v1/leadpages";
         $this->certFile = ABSPATH . WPINC . '/certificates/ca-bundle.crt';
-
     }
 
     /**
      * Base function get call get users pages
      *
-     * @param bool|false $cursor
+     * @param bool $cursor
      *
      * @return array|\GuzzleHttp\Message\FutureResponse|\GuzzleHttp\Message\ResponseInterface|\GuzzleHttp\Ring\Future\FutureInterface|null
      */
     public function getPages($cursor = false)
     {
-        $queryArray = ['pageSize' => '100'];
+        $queryArray = ['limit' => 1];
         if ($cursor) {
             $queryArray['cursor'] = $cursor;
         }
 
         try {
-            $response = $this->client->get($this->PagesUrl,
-                [
-                    'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
-                    'verify' => $this->certFile,
-                    'query' => $queryArray
-                ]);
+            $response = $this->client->get($this->PagesUrl, [
+                'headers' => ['Authorization' => 'Bearer ' .  $this->login->apiKey],
+                'verify' => $this->certFile,
+                'query' => $queryArray
+            ]);
+
             $response = [
                 'code' => '200',
-                'response' => $response->getBody(),
-                'error' => (bool)false
+                'response' => $response->getBody()->getContents(),
+                'error' => false
             ];
+
         } catch (ClientException $e) {
             $response = $this->parseException($e);
 
@@ -75,23 +80,21 @@ class LeadpagesPages
         } catch (ConnectException $e) {
             $message = 'Can not connect to Leadpages Server:';
             $response = $this->parseException($e, $message);
+
         } catch (RequestException $e) {
             $response = $this->parseException($e);
 
-
         }
-
         return $response;
-
     }
 
     /**
      * Recursive function to get all of a users pages
      *
      * @param array $returnResponse
-     * @param bool|false $cursor
+     * @param bool  $cursor
      *
-     * @return array|mixed
+     * @return mixed
      */
     public function getAllUserPages($returnResponse = array(), $cursor = false)
     {
@@ -104,46 +107,48 @@ class LeadpagesPages
         $response = $this->getPages($cursor);
         $response = json_decode($response['response'], true);
 
-        if (empty($response['_items'])) {
+        $_meta = $response['_meta'];
+
+        //if we have more pages add these pages to returnResponse and pass it back into this method
+        //to run again
+        if ($_meta['count'] != 0) {
+            $returnResponse[] = $response['_items'];
+            return $this->getAllUserPages($returnResponse, $_meta['cursor']);
+        }
+
+        // TODO: Move this to a error_message key of the return value to be 
+        // handled and return immediately to be handled by the caller.
+        if (empty($response['_items']) && $cursor === false) {
             echo '<p><strong>You appear to have no Leadpages created yet.</strong></p>';
             echo '<p> Please login to <a href="https://my.leadpages.net" target="_blank">Leadpages</a> and create a Leadpage to continue.</p>';
             die();
         }
 
-        //if we have more pages add these pages to returnResponse and pass it back into this method
-        //to run again
-        if ($response['_meta']['hasMore'] == true) {
-            $returnResponse[] = $response['_items'];
-            return $this->getAllUserPages($returnResponse, $response['_meta']['nextCursor']);
-        }
+        /**
+         * once we run out of hasMore pages return the response with all pages returned
+         * add last result to return response
+         */
+        $returnResponse[] = $response['_items'];
+        /**
+         * this maybe a bit hacky but for recursive and compatibility with other functions
+         * needed all items to be under one array under _items array
+         */
+        //echo '<pre>';print_r($returnResponse);die();
 
-        //once we run out of hasMore pages return the response with all pages returned
-        if (!$response['_meta']['hasMore']) {
-            /**
-             * add last result to return response
-             */
-            $returnResponse[] = $response['_items'];
+        if (isset($returnResponse) && count($returnResponse) > 0) {
+            $pages = array(
+                '_items' => array()
+            );
 
-            /**
-             * this maybe a bit hacky but for recursive and compatibility with other functions
-             * needed all items to be under one array under _items array
-             */
-            //echo '<pre>';print_r($returnResponse);die();
-
-            if (isset($returnResponse) && sizeof($returnResponse) > 0) {
-                $pages = array(
-                    '_items' => array()
-                );
-                foreach ($returnResponse as $subarray) {
-                    $pages['_items'] = array_merge($pages['_items'], $subarray);
-                }
-
-                //strip out unpublished pages
-                //sort pages asc by name
-                $pages = $this->sortPages($this->stripB3NonPublished($pages));
-
-                return $pages;
+            foreach ($returnResponse as $subarray) {
+                $pages['_items'] = array_merge($pages['_items'], $subarray);
             }
+
+            //strip out unpublished pages
+            //sort pages asc by name
+            $pages = $this->sortPages($this->stripB3NonPublished($pages));
+
+            return $pages;
         }
     }
 
@@ -151,14 +156,14 @@ class LeadpagesPages
     /**
      * Remove non published B3 pages
      *
-     * @param $pages
+     * @param mixed $pages
      *
      * @return mixed
      */
     public function stripB3NonPublished($pages)
     {
         foreach ($pages['_items'] as $index => $page) {
-            if ($page['isBuilderThreePage'] && !$page['isBuilderThreePublished']) {
+            if (!isset($page['content']['publishedUrl'])) {
                 unset($pages['_items'][$index]);
             }
         }
@@ -193,11 +198,10 @@ class LeadpagesPages
     public function getSinglePageDownloadUrl($pageId)
     {
         try {
-            $response = $this->client->get($this->PagesUrl . '/' . $pageId,
-                [
-                    'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
-                    'verify' => $this->certFile,
-                ]);
+            $response = $this->client->get($this->PagesUrl . '/' . $pageId, [
+                'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
+                'verify' => $this->certFile,
+            ]);
 
             $body = json_decode($response->getBody(), true);
             $url = $body['_meta']['publishUrl'];
@@ -206,7 +210,7 @@ class LeadpagesPages
             $response = [
                 'code' => '200',
                 'response' => json_encode($responseText),
-                'error' => (bool)false
+                'error' => false
             ];
         } catch (ClientException $e) {
             $httpResponse = $e->getResponse();
@@ -215,21 +219,25 @@ class LeadpagesPages
                 $response = [
                     'code' => $httpResponse->getStatusCode(),
                     'response' => "Your Leadpage could not be found! Please make sure it is published in your Leadpages Account <br />
-                    <br />
-                    Support Info:<br />
-                    <strong>Page id:</strong> {$pageId} <br />
-                    <strong>Page url:</strong> {$this->PagesUrl}/{$pageId}",
-                    'error' => (bool)true
+                        <br />
+                        Support Info:<br />
+                        <strong>Page id:</strong> {$pageId} <br />
+                        <strong>Page url:</strong> {$this->PagesUrl}/{$pageId}",
+                    'error' => true
                 ];
+
             } else {
                 $message = 'Something went wrong, please contact Leadpages support.';
                 $response = $this->parseException($e);
             }
+
         } catch (ServerException $e) {
             $response = $this->parseException($e);
+
         } catch (ConnectException $e) {
             $message = 'Can not connect to Leadpages Server:';
             $response = $this->parseException($e, $message);
+
         } catch (RequestException $e) {
             $response = $this->parseException($e);
         }
@@ -262,25 +270,31 @@ class LeadpagesPages
         $options = [];
         $options['verify'] = $this->certFile;
         foreach ($_COOKIE as $index => $value) {
-            if (strpos($index, 'splitTestV2URI') !== False) {
+            if (strpos($index, 'splitTestV2URI') !== false) {
                 $options['cookies'] = [$index => $value];
             }
         }
+
         try {
             $html = $this->client->get($responseArray['url'], $options);
             $response = [
                 'code' => 200,
                 'response' => $html->getBody()->getContents(),
             ];
+
             if (count($this->getPageSplitTestCookie($html)) > 0) {
                 $response['splitTestCookie'] = $this->getPageSplitTestCookie($html);
             }
+
         } catch (ClientException $e) {
             $response = $this->parseException($e);
+
         } catch (RequestException $e) {
             $response = $this->parseException($e);
+
         } catch (ServerException $e) {
             $response = $this->parseException($e);
+
         } catch (ConnectException $e) {
             $message = 'Can not connect to Leadpages Server:';
             $response = $this->parseException($e, $message);
@@ -309,7 +323,7 @@ class LeadpagesPages
 
         }
         //Look at base cookies array as it is not multidimensional
-        if (strpos($cookies['Name'], 'splitTest') !== False) {
+        if (strpos($cookies['Name'], 'splitTest') !== false) {
             $cookieArray = $cookies;
         }
 
@@ -327,11 +341,10 @@ class LeadpagesPages
         }
 
         try {
-            $response = $this->client->get($this->PagesUrl . '/' . $pageId,
-                [
-                    'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
-                    'verify' => $this->certFile,
-                ]);
+            $response = $this->client->get($this->PagesUrl . '/' . $pageId, [
+                'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
+                'verify' => $this->certFile,
+            ]);
 
             $body = json_decode($response->getBody(), true);
             $isSplitTested = $body['isSplit'];
@@ -339,10 +352,12 @@ class LeadpagesPages
             $response = [
                 'code' => '200',
                 'response' => $isSplitTested,
-                'error' => (bool)false
+                'error' => false
             ];
+
         } catch (ClientException $e) {
             $response = $this->parseException($e);
+
         } catch (ServerException $e) {
             $response = $this->parseException($e);
         }
@@ -362,7 +377,7 @@ class LeadpagesPages
         $response = [
             'code' => $e->getCode(),
             'response' => $message . ' ' . $e->getMessage(),
-            'error' => (bool)true
+            'error' => true
         ];
         return $response;
     }
