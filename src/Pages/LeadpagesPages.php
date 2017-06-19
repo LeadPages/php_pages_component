@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Leadpages\Pages;
 
 use GuzzleHttp\Client;
@@ -174,15 +173,14 @@ class LeadpagesPages
     /**
      * sort pages in alphabetical user
      *
-     * @param $pages
+     * @param mixed $pages
      *
      * @return mixed
      */
     public function sortPages($pages)
     {
         usort($pages['_items'], function ($a, $b) {
-            //need to convert them to lowercase strings for equal comparison
-            return strcmp(strtolower($a["name"]), strtolower($b["name"]));
+            return strcasecmp($a["name"], $b["name"]);
         });
 
         return $pages;
@@ -199,7 +197,7 @@ class LeadpagesPages
     {
         try {
             $response = $this->client->get($this->PagesUrl . '/' . $pageId, [
-                'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
+                'headers' => ['Authorization' => 'Bearer '. $this->login->apiKey],
                 'verify' => $this->certFile,
             ]);
 
@@ -212,6 +210,7 @@ class LeadpagesPages
                 'response' => json_encode($responseText),
                 'error' => false
             ];
+
         } catch (ClientException $e) {
             $httpResponse = $e->getResponse();
             //404 means their Leadpage in their account probably got deleted
@@ -228,7 +227,7 @@ class LeadpagesPages
 
             } else {
                 $message = 'Something went wrong, please contact Leadpages support.';
-                $response = $this->parseException($e);
+                $response = $this->parseException($e, $message);
             }
 
         } catch (ServerException $e) {
@@ -247,9 +246,10 @@ class LeadpagesPages
 
     /**
      * get url for page, then use a get request to get the html for the page
-     * TODO at sometime this should be replaced with a single call to get the html this requires to calls
      *
-     * @param $pageId Leadpages Page id not wordpress post_id
+     * @todo Replace with a single call to get the html this requires to calls
+     *
+     * @param string $pageId Leadpages Page id not wordpress post_id
      *
      * @return mixed
      */
@@ -305,9 +305,10 @@ class LeadpagesPages
 
     /**
      * Get cookies from response and find the splittest cookie
-     * return an array containing that cookie
-     * @param $response
-     * @return array
+     * 
+     * @param object $response
+     *
+     * @return array cookie data
      */
     public function getPageSplitTestCookie($response)
     {
@@ -322,6 +323,7 @@ class LeadpagesPages
             }
 
         }
+
         //Look at base cookies array as it is not multidimensional
         if (strpos($cookies['Name'], 'splitTest') !== false) {
             $cookieArray = $cookies;
@@ -331,7 +333,8 @@ class LeadpagesPages
     }
 
     /**
-     * @param $pageId
+     * @param string $pageId
+     *
      * @return array|\GuzzleHttp\Message\FutureResponse|\GuzzleHttp\Message\ResponseInterface|\GuzzleHttp\Ring\Future\FutureInterface|null
      */
     public function isLeadpageSplittested($pageId)
@@ -342,7 +345,7 @@ class LeadpagesPages
 
         try {
             $response = $this->client->get($this->PagesUrl . '/' . $pageId, [
-                'headers' => ['Authorization' => 'bearer '. $this->login->apiKey],
+                'headers' => ['Authorization' => 'Bearer '. $this->login->apiKey],
                 'verify' => $this->certFile,
             ]);
 
@@ -366,20 +369,19 @@ class LeadpagesPages
     }
 
     /**
-     * @param $e
      *
-     * @param string $message
+     * @param Exception $e
+     * @param string    $message
      *
      * @return array
      */
     public function parseException($e, $message = '')
     {
-        $response = [
+        return [
             'code' => $e->getCode(),
             'response' => $message . ' ' . $e->getMessage(),
             'error' => true
         ];
-        return $response;
     }
 
 }
