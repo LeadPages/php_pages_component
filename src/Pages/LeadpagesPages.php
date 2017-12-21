@@ -50,7 +50,7 @@ class LeadpagesPages
      */
     public function getPages($cursor = false)
     {
-        $queryArray = ['pageSize' => '100'];
+        $queryArray = ['pageSize' => 200];
         if ($cursor) {
             $queryArray['cursor'] = $cursor;
         }
@@ -105,15 +105,16 @@ class LeadpagesPages
         $response = $this->getPages($cursor);
         $response = json_decode($response['response'], true);
 
-        if (empty($response['_items'])) {
-            echo '<p><strong>You appear to have no Leadpages created yet.</strong></p>';
-            echo '<p> Please login to <a href="https://my.leadpages.net" target="_blank">Leadpages</a> and create a Leadpage to continue.</p>';
+        if (empty($responseArray) && empty($response['_items'])) {
+            echo '<p><strong>You appear to have no Leadpages created yet.</strong></p>
+                <p> Please login to <a href="https://my.leadpages.net" target="_blank">Leadpages</a>
+                and create a Leadpage to continue.</p>';
             die();
         }
 
         //if we have more pages add these pages to returnResponse and pass it back into this method
         //to run again
-        if ($response['_meta']['hasMore'] == true) {
+        if ($response['_meta']['hasMore'] == 'true') {
             $returnResponse[] = $response['_items'];
             return $this->getAllUserPages($returnResponse, $response['_meta']['nextCursor']);
         }
@@ -129,9 +130,7 @@ class LeadpagesPages
              * this maybe a bit hacky but for recursive and compatibility with other functions
              * needed all items to be under one array under _items array
              */
-            //echo '<pre>';print_r($returnResponse);die();
-
-            if (isset($returnResponse) && sizeof($returnResponse) > 0) {
+            if (isset($returnResponse) && count($returnResponse) > 0) {
                 $pages = array(
                     '_items' => array()
                 );
