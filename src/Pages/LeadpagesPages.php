@@ -105,7 +105,7 @@ class LeadpagesPages
         $response = $this->getPages($cursor);
         $response = json_decode($response['response'], true);
 
-        if (empty($responseArray) && empty($response['_items'])) {
+        if (empty($returnResponse) && empty($response['_items'])) {
             echo '<p><strong>You appear to have no Leadpages created yet.</strong></p>
                 <p> Please login to <a href="https://my.leadpages.net" target="_blank">Leadpages</a>
                 and create a Leadpage to continue.</p>';
